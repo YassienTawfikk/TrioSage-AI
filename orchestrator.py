@@ -98,6 +98,7 @@ def run_pipeline(scenario: str, api_key: str, progress_callback=None) -> dict:
         AllAgentsFailedError: If all three agents fail.
     """
     results = {"nvc": None, "kahneman": None, "covey": None, "synthesis": None, "failed_agents": []}
+    first_error = None  # Capture the first error for diagnostics
     successful_outputs = {}  # Ordered dict of agent_name -> output
 
     # Run each agent sequentially
@@ -117,9 +118,11 @@ def run_pipeline(scenario: str, api_key: str, progress_callback=None) -> dict:
             if progress_callback:
                 progress_callback(name, "done")
 
-        except Exception:
+        except Exception as e:
             results[name] = None
             results["failed_agents"].append(name)
+            if first_error is None:
+                first_error = str(e)
 
             if progress_callback:
                 progress_callback(name, "failed")
@@ -128,8 +131,9 @@ def run_pipeline(scenario: str, api_key: str, progress_callback=None) -> dict:
     if len(results["failed_agents"]) == len(AGENTS):
         if progress_callback:
             progress_callback("synthesizer", "failed")
+        error_detail = f" Error: {first_error}" if first_error else ""
         raise AllAgentsFailedError(
-            "All agents failed — please check your API key and try again."
+            f"All agents failed — please check your API key and try again.{error_detail}"
         )
 
     # Run synthesizer on available outputs
