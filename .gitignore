@@ -3,3 +3,6 @@ TASK.md
 /models/
 /.idea/
 __pycache__/
+.DS_Store
+.api_key
+test_scenarios.py
