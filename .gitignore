@@ -4,6 +4,4 @@ TASK.md
 /.idea/
 __pycache__/
 .DS_Store
-.api_key
-test_scenarios.py
-.run_command
+/credentials/
