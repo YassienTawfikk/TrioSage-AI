@@ -5,11 +5,43 @@ Runs NVC → Kahneman → Covey → Synthesizer, each building on previous outpu
 
 from agents import NVC_PROMPT, KAHNEMAN_PROMPT, COVEY_PROMPT, SYNTHESIZER_PROMPT
 from gemini_client import call_gemini
+import time
 
 
 class AllAgentsFailedError(Exception):
     """Raised when all three agents fail — no outputs available for synthesis."""
     pass
+
+
+def _friendly_error(raw: str | None) -> str:
+    """Convert a raw Gemini API error string into a short, user-friendly message."""
+    if not raw:
+        return "All agents failed — please check your API key and try again."
+
+    low = raw.lower()
+
+    if "429" in raw or "resource_exhausted" in low or "quota" in low:
+        # Extract retry delay if present
+        import re
+        retry = re.search(r'retry in (\d+)', raw)
+        wait_msg = f" Try again in ~{retry.group(1)} seconds." if retry else " Try again later or use a different API key."
+        return f"API quota exceeded — you've hit the free-tier request limit for this model.{wait_msg}"
+
+    if "401" in raw or "403" in raw or "invalid" in low or "api_key" in low:
+        return "Invalid API key — please double-check your key and try again."
+
+    if "404" in raw or "not_found" in low:
+        return "Model not found — the requested Gemini model may not be available for your account."
+
+    if "timeout" in low or "deadline" in low:
+        return "Request timed out — the Gemini API took too long to respond. Please try again."
+
+    if "connection" in low or "network" in low:
+        return "Network error — could not reach the Gemini API. Check your internet connection."
+
+    # Fallback — show first 150 chars of the raw error
+    short = raw[:150] + ("..." if len(raw) > 150 else "")
+    return f"All agents failed — {short}"
 
 
 # Agent definitions in execution order
@@ -118,6 +150,9 @@ def run_pipeline(scenario: str, api_key: str, progress_callback=None) -> dict:
             if progress_callback:
                 progress_callback(name, "done")
 
+            # Rate limit delay — free tier allows ~2 requests/min
+            time.sleep(10)
+
         except Exception as e:
             results[name] = None
             results["failed_agents"].append(name)
@@ -131,10 +166,7 @@ def run_pipeline(scenario: str, api_key: str, progress_callback=None) -> dict:
     if len(results["failed_agents"]) == len(AGENTS):
         if progress_callback:
             progress_callback("synthesizer", "failed")
-        error_detail = f" Error: {first_error}" if first_error else ""
-        raise AllAgentsFailedError(
-            f"All agents failed — please check your API key and try again.{error_detail}"
-        )
+        raise AllAgentsFailedError(_friendly_error(first_error))
 
     # Run synthesizer on available outputs
     if progress_callback:

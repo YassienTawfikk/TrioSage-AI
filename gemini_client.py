@@ -26,7 +26,7 @@ def call_gemini(system_prompt: str, message: str, api_key: str) -> str:
         client = genai.Client(api_key=api_key)
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=message,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
