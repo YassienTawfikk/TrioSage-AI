@@ -23,10 +23,15 @@ def call_gemini(system_prompt: str, message: str, api_key: str) -> str:
         Exception: With a descriptive message if the API call fails.
     """
     try:
+        # Debugging step: print key information to terminal
+        key_len = len(api_key)
+        prefix = api_key[:10] if key_len >= 10 else api_key
+        print(f"DEBUG: Using API Key (length {key_len}): {prefix}...")
+
         client = genai.Client(api_key=api_key)
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=message,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
